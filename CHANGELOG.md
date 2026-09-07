@@ -1,14 +1,20 @@
 # Changelog
 
-## v0.13.1 — Queue Routing & Supervisor Escalation
+## 0.14.0
 
-- Corrige contador permanente de **Na fila**: somente atendimentos `waiting` entram no badge.
-- Conversas sem ocorrência passam a aparecer como **Sem atendimento**.
-- Distribuição automática passa a aguardar **30 segundos**.
-- Roteamento prioriza atendentes online, autorizados e abaixo da capacidade.
-- Escolha por menor carga ativa.
-- Quando não há atendente operacional disponível, o atendimento é escalado para Supervisor/Admin online autorizado e abaixo da capacidade.
-- Se ninguém puder receber, o atendimento permanece na fila.
-- Roteador periódico redistribui atendimentos em espera quando a equipe volta a ficar disponível.
-- Transferência manual para uma fila reinicia a janela de 30 segundos.
-- `.gitignore` protege `data/`, `baileys_auth/`, `.env` e `node_modules/` para versionamento seguro.
+### Fixed
+- Fila fantasma criada ao apenas abrir uma conversa.
+- GET de atendimento e workspace deixam de criar ocorrência operacional.
+- Limpeza de atendimentos-fantasma legados na inicialização.
+
+### Added
+- Modal completo de transferência para fila ou atendente.
+- Motivo de transferência e flag de histórico.
+- Notificação em tempo real para o atendente destinatário.
+- Ação direta para abrir a conversa recebida.
+- Logo oficial da Connect no frontend.
+
+### Changed
+- Refinamento visual geral do atendimento.
+- Barra operacional do chat reduzida para resumo de fila, atendente e estado.
+- Contadores de fila sincronizados com atendimentos reais.

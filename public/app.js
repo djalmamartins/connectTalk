@@ -81,11 +81,14 @@ function filteredChats() {
 }
 
 function updateCounts() {
+  const waiting = chats.filter(c=>c.attendance?.status==='waiting').length;
   document.getElementById('totalChats').textContent = chats.length;
   document.getElementById('mineCount').textContent = chats.filter(c=>c.attendance?.agentId===CURRENT_AGENT_ID && c.attendance?.status!=='closed').length;
-  document.getElementById('queueCount').textContent = chats.filter(c=>c.attendance?.status==='waiting').length;
+  document.getElementById('queueCount').textContent = waiting;
   document.getElementById('closedCount').textContent = chats.filter(c=>c.attendance?.status==='closed').length;
   document.getElementById('kOpen').textContent = chats.filter(c=>c.attendance && c.attendance.status!=='closed').length;
+  const sidebarQueue=document.getElementById('sidebarQueueCount');
+  if(sidebarQueue){sidebarQueue.textContent=waiting;sidebarQueue.classList.toggle('hidden',waiting===0);}
 }
 
 function renderChats() {
@@ -127,6 +130,12 @@ function renderAttendance(a) {
   document.getElementById('closeAttendanceBtn').textContent = a?.status==='closed' ? 'Reabrir' : 'Finalizar';
   document.getElementById('queueSelect').value=a?.queueId||'geral';
   document.getElementById('agentSelect').value=a?.agentId||''; const stateSel=document.getElementById('attendanceStateSelect'); if(stateSel) stateSel.value=a?.status==='closed'?'assigned':(a?.status||'waiting');
+  const qName=a?.queue?.name||queues.find(q=>q.id===(a?.queueId||'geral'))?.name||'Geral';
+  const agentName=a?.agent?.name||agents.find(x=>x.id===a?.agentId)?.name||'Sem atendente';
+  const stateName=attendanceLabel(a);
+  const qLabel=document.getElementById('currentQueueName'); if(qLabel)qLabel.textContent=qName;
+  const aLabel=document.getElementById('currentAgentName'); if(aLabel)aLabel.textContent=agentName;
+  const sLabel=document.getElementById('currentStateName'); if(sLabel)sLabel.textContent=stateName;
   let sla='';
   if(a?.lastCustomerAt && !a?.firstResponseAt){ const mins=Math.max(0,Math.round((Date.now()-new Date(a.lastCustomerAt))/60000)); sla=` · Aguardando resposta há ${formatMinutes(mins)}`; }
   else if(a?.lastCustomerAt && a?.firstResponseAt){ const mins=Math.max(0,Math.round((new Date(a.firstResponseAt)-new Date(a.lastCustomerAt))/60000)); sla=` · 1ª resposta em ${formatMinutes(mins)}`; }
@@ -330,12 +339,103 @@ function setState(s){
   else{liveMode=false;text.textContent='Conectar';qr.removeAttribute('src');qr.style.display='none';pill.textContent=s.status==='disconnected'?'WhatsApp desconectado':(s.lastError||'Inicializando conexão com WhatsApp…');pill.className='status-pill amber';if(s.status==='starting')setOverlay(true);}
 }
 
+let pendingTransferredChatId = null;
+
+function transferEligibleAgent(agent, queueId=''){
+  if(!agent || agent.id===CURRENT_AGENT_ID) return false;
+  if(agent.connected===false || agent.status!=='online') return false;
+  const capacity=Number(agent.maxActive||agent.capacity||5);
+  const active=Number(agent.active ?? chats.filter(c=>c.attendance?.agentId===agent.id && c.attendance?.status!=='closed').length);
+  if(active>=capacity) return false;
+  if(queueId && Array.isArray(agent.queueIds) && agent.role==='agent' && !agent.queueIds.includes(queueId)) return false;
+  return true;
+}
+
+function refreshTransferAgentOptions(){
+  const select=document.getElementById('transferAgentSelect');
+  const queueId=document.getElementById('transferQueueSelect')?.value || currentAttendance?.queueId || 'geral';
+  if(!select)return;
+  const rows=agents.filter(a=>a.id!==CURRENT_AGENT_ID).map(a=>{
+    const capacity=Number(a.maxActive||a.capacity||5), active=Number(a.active ?? chats.filter(c=>c.attendance?.agentId===a.id && c.attendance?.status!=='closed').length);
+    const eligible=transferEligibleAgent(a,queueId);
+    const status=eligible?`Online · ${active}/${capacity}`:(a.status!=='online'||a.connected===false?'Offline/ausente':active>=capacity?`Lotado · ${active}/${capacity}`:'Sem acesso à fila');
+    return `<option value="${esc(a.id)}" ${eligible?'':'disabled'}>${esc(a.name)} — ${esc(status)}</option>`;
+  });
+  select.innerHTML='<option value="">Selecione um atendente</option>'+rows.join('');
+}
+
+function openTransferModal(){
+  if(!currentChatId || !currentAttendance) return showToast('Selecione um atendimento antes de transferir.','error');
+  if(currentAttendance.status==='closed') return showToast('Reabra o atendimento antes de transferir.','error');
+  const modal=document.getElementById('transferModal');
+  const q=document.getElementById('transferQueueSelect');
+  q.innerHTML=queues.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('');
+  q.value=currentAttendance.queueId||'geral';
+  document.querySelector('input[name="transferMode"][value="queue"]').checked=true;
+  document.getElementById('transferAgentSelect').disabled=true;
+  document.getElementById('transferReason').value='';
+  document.getElementById('transferReasonCount').textContent='0';
+  document.getElementById('transferKeepHistory').checked=true;
+  document.getElementById('transferError').textContent='';
+  refreshTransferAgentOptions();
+  modal.classList.remove('hidden');
+}
+
+function closeTransferModal(){document.getElementById('transferModal')?.classList.add('hidden');}
+
+document.querySelectorAll('input[name="transferMode"]').forEach(r=>r.addEventListener('change',()=>{
+  const toAgent=document.querySelector('input[name="transferMode"]:checked')?.value==='agent';
+  document.getElementById('transferAgentSelect').disabled=!toAgent;
+  if(toAgent) refreshTransferAgentOptions();
+}));
+document.getElementById('transferQueueSelect')?.addEventListener('change',refreshTransferAgentOptions);
+document.getElementById('transferReason')?.addEventListener('input',e=>document.getElementById('transferReasonCount').textContent=String(e.target.value.length));
+document.getElementById('closeTransferModal')?.addEventListener('click',closeTransferModal);
+document.getElementById('cancelTransferBtn')?.addEventListener('click',closeTransferModal);
+document.getElementById('transferModal')?.addEventListener('click',e=>{if(e.target.id==='transferModal')closeTransferModal();});
+document.getElementById('confirmTransferBtn')?.addEventListener('click',async()=>{
+  const mode=document.querySelector('input[name="transferMode"]:checked')?.value||'queue';
+  const queueId=document.getElementById('transferQueueSelect').value||currentAttendance?.queueId||'geral';
+  const agentId=mode==='agent'?(document.getElementById('transferAgentSelect').value||null):null;
+  const reason=document.getElementById('transferReason').value.trim();
+  const err=document.getElementById('transferError'); err.textContent='';
+  if(mode==='agent'&&!agentId){err.textContent='Selecione um atendente disponível.';return;}
+  const btn=document.getElementById('confirmTransferBtn');btn.disabled=true;btn.textContent='Transferindo...';
+  try{
+    await attendanceAction('transfer',{agentId,queueId,reason,keepHistory:document.getElementById('transferKeepHistory').checked});
+    closeTransferModal();
+    showToast(mode==='agent'?'Atendimento transferido e atendente notificado.':'Atendimento enviado para a fila.');
+  }catch(error){err.textContent=error.message||String(error);}
+  finally{btn.disabled=false;btn.innerHTML='➤&nbsp;&nbsp; Transferir atendimento';}
+});
+
+function showTransferNotice(payload){
+  if(!payload || payload.toAgentId!==CURRENT_AGENT_ID) return;
+  pendingTransferredChatId=payload.chatId||null;
+  const notice=document.getElementById('transferNotice');
+  const txt=document.getElementById('transferNoticeText');
+  txt.textContent=`${payload.fromAgentName||'A equipe'} enviou a conversa de ${payload.contactName||'um contato'} para você${payload.queueName?` · ${payload.queueName}`:''}.${payload.reason?` Motivo: ${payload.reason}`:''}`;
+  notice.classList.remove('hidden');
+  try{if('Notification' in window && Notification.permission==='granted')new Notification('ConnectTalk · Atendimento transferido',{body:txt.textContent});}catch{}
+  clearTimeout(showTransferNotice.timer);showTransferNotice.timer=setTimeout(()=>notice.classList.add('hidden'),12000);
+}
+
+document.getElementById('closeTransferNotice')?.addEventListener('click',()=>document.getElementById('transferNotice').classList.add('hidden'));
+document.getElementById('dismissTransferredChat')?.addEventListener('click',()=>document.getElementById('transferNotice').classList.add('hidden'));
+document.getElementById('openTransferredChat')?.addEventListener('click',async()=>{
+  const chatId=pendingTransferredChatId;document.getElementById('transferNotice').classList.add('hidden');
+  if(!chatId)return;
+  await loadChats({preserveSelection:true});
+  const chat=chats.find(c=>c.id===chatId);
+  if(chat)selectChat(chatId,chat);else{currentChatId=chatId;await reloadWorkspace(chatId);}
+});
+
 async function attendanceAction(action, body={}) {
   if(!currentChatId||currentChatId.startsWith('demo-')) return;
   const actionChatId=currentChatId;
   const r=await fetch(`/api/attendance/${encodeURIComponent(actionChatId)}/${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const data=await r.json();
-  if(!r.ok)return alert(data.error||'Não foi possível atualizar o atendimento.');
+  if(!r.ok){const error=new Error(data.error||'Não foi possível atualizar o atendimento.');showToast(error.message,'error');throw error;}
 
   // Transferência v0.9.3 devolve snapshot completo; demais ações continuam
   // compatíveis com a resposta antiga do atendimento.
@@ -351,7 +451,7 @@ async function attendanceAction(action, body={}) {
 }
 
 document.getElementById('claimBtn').onclick=()=>attendanceAction('claim',{agentId:CURRENT_AGENT_ID});
-document.getElementById('transferBtn').onclick=()=>attendanceAction('transfer',{agentId:document.getElementById('agentSelect').value||null,queueId:document.getElementById('queueSelect').value});
+document.getElementById('transferBtn').onclick=openTransferModal;
 document.getElementById('closeAttendanceBtn').onclick=()=>attendanceAction(currentAttendance?.status==='closed'?'reopen':'close');
 document.getElementById('prioritySelect').onchange=e=>attendanceAction('priority',{priority:e.target.value});
 document.getElementById('saveTagsBtn').onclick=()=>{const tags=document.getElementById('tagsInput').value.split(',').map(v=>v.trim()).filter(Boolean);attendanceAction('tags',{tags});};
@@ -363,6 +463,7 @@ socket.on('wa:state',state=>{if(currentUser)setState(state);});
 socket.on('wa:chats',list=>{if(!liveMode||!Array.isArray(list))return;chats=list.map(c=>({...c,preview:c.lastMessage,time:formatTime(c.timestamp),initials:initials(c.name)}));renderChats();if(!currentChatId&&filteredChats().length)selectChat(filteredChats()[0].id,filteredChats()[0]);});
 socket.on('wa:message',m=>{if(!liveMode)return;if(m.chatId===currentChatId)appendMessage(m);scheduleChatsReload();if(m.chatId===currentChatId)loadAttendance(currentChatId);});
 socket.on('attendance:update',a=>{if(a?.chatId===currentChatId)renderAttendance(a);scheduleChatsReload();});
+socket.on('transfer:received',payload=>{showTransferNotice(payload);scheduleChatsReload();});
 socket.on('agents:update',list=>{if(!Array.isArray(list))return;agents=list;const me=agents.find(a=>a.id===CURRENT_AGENT_ID);if(me){document.getElementById('agentStatusSelect').value=me.availability||me.status;document.getElementById('agentStatusDot').className=`online-dot ${me.status}`;}loadMeta();});
 socket.on('queues:update',list=>{if(!Array.isArray(list))return;queues=list;loadMeta();renderChats();});
 socket.on('supervisor:update',data=>{const modal=document.getElementById('supervisorModal');if(['supervisor','admin'].includes(currentUser?.role)&&modal&&!modal.classList.contains('hidden'))renderSupervisorData(data);});
@@ -403,7 +504,7 @@ document.getElementById('newUnitBtn')?.addEventListener('click',createUnitInline
 async function loadAppInfo(){
   try{
     const info=await fetch('/api/app-info',{cache:'no-store'}).then(r=>r.json());
-    const label=`v${info.version||'0.10.0'}`;
+    const label=`v${info.version||'0.14.0'}`;
     document.getElementById('appVersion').textContent=label;
     document.getElementById('layoutVersion').textContent=label;
   }catch{}

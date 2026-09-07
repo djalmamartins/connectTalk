@@ -9,8 +9,8 @@
 <body>
   <div id="loginOverlay" class="login-overlay hidden">
     <form id="loginForm" class="login-card">
-      <div class="brand-mark login-brand"><span class="ring"></span><div><b>CONNECT</b><small>— CONDOMÍNIO —</small></div></div>
-      <span class="version-chip">ConnectTalk v0.13.1</span>
+      <div class="brand-logo login-brand"><img src="/assets/connect-logo.png" alt="Connect Condomínios"></div>
+      <span class="version-chip">ConnectTalk v0.14.0</span>
       <h1>Entrar no atendimento</h1>
       <p>Use seu usuário individual. As ações passam a registrar quem assumiu, respondeu, transferiu e finalizou.</p>
       <label>E-mail<input id="loginEmail" type="email" autocomplete="username" value="djalma@connect.local" required /></label>
@@ -23,7 +23,7 @@
   <div id="qrOverlay" class="overlay hidden">
     <div class="qr-card">
       <button id="closeQr" class="icon-btn close">×</button>
-      <div class="brand-mark small"><span class="ring"></span><div><b>CONNECT</b><small>— CONDOMÍNIO —</small></div></div>
+      <div class="brand-logo small"><img src="/assets/connect-logo.png" alt="Connect Condomínios"></div>
       <h2>Conectar WhatsApp</h2>
       <p id="qrText">Escaneie o QR Code com o WhatsApp do aparelho que será usado no atendimento.</p>
       <div class="qr-box"><img id="qrImage" alt="QR Code do WhatsApp" /></div>
@@ -78,7 +78,7 @@
   <div id="teamModal" class="overlay hidden">
     <div class="qr-card team-card">
       <button id="closeTeamModal" class="icon-btn close">×</button>
-      <div class="modal-head"><div><h2>Equipe e filas</h2><p>Usuários e filas persistidos no SQLite. Somente administradores podem alterar.</p></div><span class="version-chip">v0.13.1</span></div>
+      <div class="modal-head"><div><h2>Equipe e filas</h2><p>Usuários e filas persistidos no SQLite. Somente administradores podem alterar.</p></div><span class="version-chip">v0.14.0</span></div>
       <div class="team-grid">
         <section><h3>Usuários</h3><div id="teamUsers" class="admin-list"></div><form id="newUserForm" class="admin-form"><input id="newUserName" placeholder="Nome" required><input id="newUserEmail" type="email" placeholder="E-mail" required><input id="newUserPassword" type="password" placeholder="Senha inicial" required><select id="newUserRole"><option value="agent">Atendente</option><option value="supervisor">Supervisor</option><option value="admin">Administrador</option></select><button>Adicionar usuário</button></form></section>
         <section><h3>Filas</h3><div id="teamQueues" class="admin-list"></div><form id="newQueueForm" class="admin-form"><input id="newQueueName" placeholder="Nome da fila" required><button>Adicionar fila</button></form></section>
@@ -90,16 +90,38 @@
   <div id="supervisorModal" class="overlay hidden">
     <div class="qr-card supervisor-card">
       <button id="closeSupervisorModal" class="icon-btn close">×</button>
-      <div class="modal-head"><div><h2>Painel de supervisão</h2><p>Equipe, capacidade, filas, SLA e carga em tempo real.</p></div><span class="version-chip">v0.13.1</span></div>
+      <div class="modal-head"><div><h2>Painel de supervisão</h2><p>Equipe, capacidade, filas, SLA e carga em tempo real.</p></div><span class="version-chip">v0.14.0</span></div>
       <div id="supervisorKpis" class="supervisor-kpis"></div>
       <div class="supervisor-grid"><section><h3>Equipe</h3><div id="supervisorAgents"></div></section><section><h3>Filas e SLA</h3><div id="supervisorQueues"></div></section></div>
     </div>
   </div>
+  <div id="transferModal" class="overlay hidden">
+    <div class="transfer-card">
+      <button id="closeTransferModal" class="modal-x" type="button">×</button>
+      <div class="transfer-title"><span class="transfer-icon">⇄</span><div><h2>Trocar atendente</h2><p>Transfira este atendimento para outro grupo ou atendente.<br>O destino receberá um alerta em tempo real.</p></div></div>
+      <div class="transfer-options">
+        <h3>Para onde deseja transferir?</h3>
+        <label class="transfer-option"><input type="radio" name="transferMode" value="queue" checked><span>Transferir para um grupo</span><select id="transferQueueSelect"></select></label>
+        <label class="transfer-option"><input type="radio" name="transferMode" value="agent"><span>Transferir para um atendente</span><select id="transferAgentSelect" disabled><option value="">Selecione um atendente</option></select></label>
+      </div>
+      <label class="transfer-reason"><strong>Relate o motivo da transferência</strong><small>Descreva o motivo e as informações importantes para o próximo atendente.</small><textarea id="transferReason" maxlength="500" rows="5" placeholder="Ex.: Cliente solicitou a segunda via do boleto referente à unidade 101..."></textarea><span><b id="transferReasonCount">0</b>/500</span></label>
+      <label class="transfer-history"><input id="transferKeepHistory" type="checkbox" checked><span><strong>Manter histórico visível para o próximo atendente</strong><small>O novo atendente poderá visualizar todo o histórico da conversa.</small></span></label>
+      <div id="transferError" class="form-error"></div>
+      <div class="transfer-actions"><button id="cancelTransferBtn" class="secondary-btn" type="button">Cancelar</button><button id="confirmTransferBtn" class="primary-transfer" type="button">➤&nbsp;&nbsp; Transferir atendimento</button></div>
+    </div>
+  </div>
+
+  <div id="transferNotice" class="transfer-notice hidden">
+    <button id="closeTransferNotice" type="button">×</button>
+    <span class="notice-icon">⇄</span>
+    <div><strong>Novo atendimento transferido para você</strong><p id="transferNoticeText">Uma conversa foi enviada para sua fila.</p><div class="notice-actions"><button id="openTransferredChat" type="button">Abrir conversa</button><button id="dismissTransferredChat" type="button">Agora não</button></div></div>
+  </div>
+
   <div id="toast" class="toast hidden"></div>
 
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="brand-mark"><span class="ring"></span><div><b>CONNECT</b><small>— CONDOMÍNIO —</small></div></div>
+      <div class="brand-logo sidebar-logo"><img src="/assets/connect-logo.png" alt="Connect Condomínios"></div>
       <div class="agent-card">
         <div class="avatar photo"><span id="currentUserInitials">DM</span><span id="agentStatusDot" class="online-dot"></span></div>
         <div><strong id="currentUserName">Djalma Martins</strong><select id="agentStatusSelect" class="agent-status-select"><option value="online">Online</option><option value="away">Ausente</option><option value="offline">Offline</option></select></div>
@@ -107,7 +129,7 @@
       </div>
       <nav>
         <a>⌂ <span>Dashboard</span></a>
-        <a class="active">◉ <span>Atendimentos</span></a>
+        <a class="active">◉ <span>Atendimentos</span><b id="sidebarQueueCount" class="nav-count hidden">0</b></a>
         <a id="contactsNav" href="#">♙ <span>Contatos</span></a>
         <a>▣ <span>Chamados</span></a>
         <a id="quickRepliesNav" href="#">ϟ <span>Mensagens rápidas</span></a>
@@ -117,13 +139,13 @@
         <a>✧ <span>Painel de IA</span><em>Novo</em></a>
         <a id="teamNav" href="#">⚙ <span>Equipe e filas</span></a>
       </nav>
-      <div class="sidebar-version"><span>ConnectTalk</span><b id="appVersion">v0.13.1</b></div>
+      <div class="sidebar-version"><span>ConnectTalk</span><b id="appVersion">v0.14.0</b></div>
       <button id="logoutBtn" class="logout">⇱ <span>Sair</span></button>
     </aside>
 
     <main class="main">
       <header class="topbar">
-        <div><div class="title-line"><h1>Atendimentos WhatsApp</h1><span id="layoutVersion" class="version-chip">v0.13.1</span></div><p>Gerencie todas as conversas com moradores em um só lugar.</p></div>
+        <div><div class="title-line"><h1>Atendimentos WhatsApp</h1><span id="layoutVersion" class="version-chip">v0.14.0</span></div><p>Gerencie todas as conversas com moradores em um só lugar.</p></div>
         <div class="top-actions">
           <select id="queueFilter" class="ghost queue-filter"><option value="">☷ Todas as filas</option></select>
           <label class="search">⌕<input id="chatSearch" placeholder="Buscar atendimentos..." /></label>
@@ -149,7 +171,7 @@
         </div>
 
         <div class="chat panel">
-          <div class="chat-head"><div class="avatar dark" id="chatAvatar">JS</div><div class="chat-ident"><strong id="chatName">Selecione uma conversa</strong><span id="chatPhone">—</span></div><span class="wa-dot">◉</span><div class="spacer"></div><span id="attendanceStatus" class="attendance-chip waiting">Na fila</span><button id="claimBtn" class="ghost mini action-green">Assumir</button><button id="closeAttendanceBtn" class="ghost mini">Finalizar</button><button class="icon-btn">⋮</button></div><div class="attendance-bar"><label>Fila <select id="queueSelect"></select></label><label>Atendente <select id="agentSelect"><option value="">Sem atendente</option></select></label><button id="transferBtn" class="ghost mini">Transferir</button><label>Estado <select id="attendanceStateSelect"><option value="waiting">Na fila</option><option value="assigned">Em atendimento</option><option value="waiting_customer">Aguardando cliente</option><option value="waiting_internal">Aguardando interno</option></select></label><span id="attendanceMeta">Selecione uma conversa para gerenciar o atendimento.</span></div>
+          <div class="chat-head"><div class="avatar dark" id="chatAvatar">JS</div><div class="chat-ident"><strong id="chatName">Selecione uma conversa</strong><span id="chatPhone">—</span></div><span class="wa-dot">◉</span><div class="spacer"></div><span id="attendanceStatus" class="attendance-chip waiting">Na fila</span><button id="claimBtn" class="ghost mini action-green">Assumir</button><button id="transferBtn" class="ghost mini transfer-trigger">⇄ Transferir</button><button id="closeAttendanceBtn" class="ghost mini">Finalizar</button><button class="icon-btn">⋮</button></div><div class="attendance-bar refined"><div class="attendance-summary"><span><small>Fila</small><strong id="currentQueueName">Geral</strong></span><span><small>Atendente</small><strong id="currentAgentName">Sem atendente</strong></span><span><small>Estado</small><strong id="currentStateName">Na fila</strong></span></div><span id="attendanceMeta">Selecione uma conversa para gerenciar o atendimento.</span><select id="queueSelect" class="compat-select" aria-hidden="true"></select><select id="agentSelect" class="compat-select" aria-hidden="true"><option value="">Sem atendente</option></select><select id="attendanceStateSelect" class="compat-select" aria-hidden="true"><option value="waiting">Na fila</option><option value="assigned">Em atendimento</option><option value="waiting_customer">Aguardando cliente</option><option value="waiting_internal">Aguardando interno</option></select></div>
           <div id="messageArea" class="message-area"></div>
           <div class="composer"><button>⌕</button><button>☺</button><button>ϟ</button><input id="messageInput" placeholder="Digite uma mensagem..." /><button id="sendBtn" class="send">➤</button></div>
         </div>

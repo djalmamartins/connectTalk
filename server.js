@@ -20,7 +20,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = '0.13.1';
+const APP_VERSION = '0.14.0';
 const AUTO_ASSIGN_DELAY_MS = 30_000;
 const APP_NAME = 'ConnectTalk';
 const AUTH_DIR = path.join(__dirname, 'baileys_auth');
@@ -101,7 +101,20 @@ async function loadAttendances() {
     await fs.mkdir(DATA_DIR, { recursive: true });
     const raw = await fs.readFile(ATTENDANCE_FILE, 'utf8');
     const parsed = JSON.parse(raw);
-    attendances = new Map((parsed.attendances || []).map(item => [item.chatId, item]));
+    const loaded = parsed.attendances || [];
+    // v0.14: remove ocorrências-fantasma criadas por versões antigas apenas ao abrir uma conversa.
+    // Atendimento real precisa ter mensagem do cliente, agente, resposta, fechamento, nota/tag ou evento operacional além da criação manual.
+    const cleaned = loaded.filter(item => {
+      const events = Array.isArray(item.events) ? item.events : [];
+      const onlyManualCreate = events.length <= 1 && events[0]?.type === 'created' && events[0]?.label === 'Atendimento criado';
+      const hasOperationalData = !!item.lastCustomerAt || !!item.lastAgentAt || !!item.firstResponseAt || !!item.agentId || !!item.closedAt || (item.notes?.length || 0) > 0 || (item.tags?.length || 0) > 0 || events.some(e => e.type !== 'created');
+      return hasOperationalData || !onlyManualCreate;
+    });
+    attendances = new Map(cleaned.map(item => [item.chatId, item]));
+    if (cleaned.length !== loaded.length) {
+      console.log(`🧹 v0.14: ${loaded.length-cleaned.length} atendimento(s) fantasma removido(s) da fila.`);
+      scheduleAttendancePersist();
+    }
   } catch (error) {
     if (error?.code !== 'ENOENT') console.warn('Falha ao carregar atendimentos:', error?.message || error);
     attendances = new Map();
@@ -893,9 +906,9 @@ app.get('/api/attendances', (req, res) => {
 
 app.get('/api/attendance/:chatId', (req, res) => {
   const chatId = req.params.chatId;
-  const item = attendances.get(chatId) || ensureAttendance(chatId, 'manual');
-  if (!item) return res.status(404).json({ error: 'Atendimento não encontrado.' });
-  res.json(publicAttendance(item));
+  if (!isUsableJid(chatId)) return res.status(400).json({ error: 'Conversa inválida.' });
+  // v0.14: consultar/abrir uma conversa nunca cria atendimento.
+  res.json(publicAttendance(attendances.get(chatId)) || null);
 });
 
 // v0.9.1: snapshot completo do workspace. Usado após ações como transferência
@@ -903,7 +916,8 @@ app.get('/api/attendance/:chatId', (req, res) => {
 app.get('/api/workspace/:chatId', (req, res) => {
   const chatId = req.params.chatId;
   if (!isUsableJid(chatId)) return res.status(400).json({ error: 'Conversa inválida.' });
-  const item = attendances.get(chatId) || ensureAttendance(chatId, 'manual');
+  // v0.14: workspace é somente leitura; não cria fila fantasma ao selecionar um chat.
+  const item = attendances.get(chatId) || null;
   const chat = chats.get(chatId) || null;
   const crmContact = contactDb.toContactCore(contactDb.identifyChat(chatId), chatId);
   res.json({
@@ -971,6 +985,8 @@ app.post('/api/attendance/:chatId/transfer', (req, res) => {
   item.closedAt = null;
   if (nextAgent) { item.autoAssignAt = null; } else { markWaitingForAutoAssign(item, { resetTimer: true }); }
 
+  const transferReason = String(req.body?.reason || '').trim().slice(0, 500);
+  const keepHistory = req.body?.keepHistory !== false;
   addAttendanceEvent(
     item,
     'transferred',
@@ -979,9 +995,26 @@ app.post('/api/attendance/:chatId/transfer', (req, res) => {
       fromAgentId: oldAgentId,
       fromQueueId: oldQueueId,
       toAgentId: item.agentId,
-      toQueueId: item.queueId
+      toQueueId: item.queueId,
+      reason: transferReason || null,
+      keepHistory
     }
   );
+
+  if (nextAgent) {
+    const transferContact = contactDb.toContactCore(contactDb.identifyChat(chatId), chatId);
+    io.emit('transfer:received', {
+      toAgentId: nextAgent.id,
+      fromAgentId: req.user?.id || oldAgentId || null,
+      fromAgentName: req.user?.name || oldAgent?.name || 'Equipe',
+      chatId,
+      contactName: transferContact?.name || chats.get(chatId)?.name || contactName(chatId),
+      queueId: nextQueue.id,
+      queueName: nextQueue.name,
+      reason: transferReason || '',
+      at: nowIso()
+    });
+  }
 
   // Reidentifica o contato sem modificar seu cadastro e devolve um snapshot
   // completo para o frontend validar que nada foi perdido.
@@ -1162,7 +1195,7 @@ refreshTeamDirectory();
 server.listen(PORT, () => {
   console.log('');
   console.log('===================================');
-  console.log(`CONNECTTALK v${APP_VERSION} — 30s Routing & Supervisor Escalation`);
+  console.log(`CONNECTTALK v${APP_VERSION} — Visual Refinement & Transfer Center`);
   console.log('===================================');
   console.log(`http://localhost:${PORT}`);
   console.log('Motor: Baileys 6.7.23');
