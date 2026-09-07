@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Connect Condomínio · Atendimentos WhatsApp</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="loginOverlay" class="login-overlay hidden">
+    <form id="loginForm" class="login-card">
+      <div class="brand-mark login-brand"><span class="ring"></span><div><b>CONNECT</b><small>— CONDOMÍNIO —</small></div></div>
+      <span class="version-chip">ConnectTalk v0.13.1</span>
+      <h1>Entrar no atendimento</h1>
+      <p>Use seu usuário individual. As ações passam a registrar quem assumiu, respondeu, transferiu e finalizou.</p>
+      <label>E-mail<input id="loginEmail" type="email" autocomplete="username" value="djalma@connect.local" required /></label>
+      <label>Senha<input id="loginPassword" type="password" autocomplete="current-password" value="demo1234" required /></label>
+      <div id="loginError" class="form-error"></div>
+      <button type="submit" class="login-submit">Entrar</button>
+      <small class="login-hint">Primeiro acesso de demonstração: djalma@connect.local / demo1234</small>
+    </form>
+  </div>
+  <div id="qrOverlay" class="overlay hidden">
+    <div class="qr-card">
+      <button id="closeQr" class="icon-btn close">×</button>
+      <div class="brand-mark small"><span class="ring"></span><div><b>CONNECT</b><small>— CONDOMÍNIO —</small></div></div>
+      <h2>Conectar WhatsApp</h2>
+      <p id="qrText">Escaneie o QR Code com o WhatsApp do aparelho que será usado no atendimento.</p>
+      <div class="qr-box"><img id="qrImage" alt="QR Code do WhatsApp" /></div>
+      <div id="qrStatus" class="status-pill amber">Aguardando QR Code…</div>
+      <p class="risk-note">Integração baseada no WhatsApp Web. Pode violar os termos do WhatsApp e existe risco de bloqueio do número.</p>
+    </div>
+  </div>
+
+
+  <div id="contactModal" class="overlay hidden">
+    <div class="qr-card contact-modal-card">
+      <button id="closeContactModal" class="icon-btn close">×</button>
+      <h2>Identificar contato</h2>
+      <p>Vincule o número do WhatsApp ao morador e à unidade. A conversa passará a mostrar estes dados automaticamente.</p>
+      <div class="contact-form-grid">
+        <label>Nome completo<input id="contactNameInput" placeholder="Nome do morador" /></label>
+        <label>Telefone<input id="contactPhoneInput" placeholder="5531999999999" /></label>
+        <label>E-mail<input id="contactEmailInput" type="email" placeholder="email@exemplo.com" /></label><label>CPF/CNPJ<input id="contactDocumentInput" placeholder="Opcional" /></label>
+        <label>Tipo<select id="contactKindInput"><option value="morador">Morador</option><option value="proprietario">Proprietário</option><option value="inquilino">Inquilino</option><option value="sindico">Síndico</option><option value="fornecedor">Fornecedor</option></select></label>
+        <label>Condomínio<div class="inline-field"><select id="contactCondoInput"><option value="">Selecione</option></select><button type="button" id="newCondoBtn" class="mini-add" title="Cadastrar condomínio">+</button></div></label>
+        <label>Unidade<div class="inline-field"><select id="contactUnitInput"><option value="">Sem unidade</option></select><button type="button" id="newUnitBtn" class="mini-add" title="Cadastrar unidade">+</button></div></label>
+        <label>Vínculo<select id="contactRelationshipInput"><option value="morador">Morador</option><option value="proprietario">Proprietário</option><option value="inquilino">Inquilino</option><option value="sindico">Síndico</option><option value="fornecedor">Fornecedor</option></select></label><label class="span-2">Observações<textarea id="contactNotesInput" rows="2" placeholder="Informações internas do contato"></textarea></label>
+      </div>
+      <div id="contactFormError" class="form-error"></div>
+      <button id="saveContactBtn" class="wide action-green">Salvar identificação</button>
+    </div>
+  </div>
+
+  <div id="contactsModal" class="overlay hidden">
+    <div class="qr-card directory-card">
+      <button id="closeContactsModal" class="icon-btn close">×</button>
+      <div class="modal-head"><div><h2>Contatos</h2><p>Cadastros persistidos no SQLite do ConnectTalk.</p></div><span id="contactsCount" class="version-chip">0 contatos</span></div>
+      <label class="directory-search">⌕<input id="contactsSearchInput" placeholder="Buscar por nome, telefone, e-mail, condomínio ou unidade..." /></label>
+      <div id="contactsDirectory" class="contacts-directory"></div>
+    </div>
+  </div>
+
+  <div id="quickRepliesModal" class="overlay hidden">
+    <div class="qr-card quick-card">
+      <button id="closeQuickRepliesModal" class="icon-btn close">×</button>
+      <h2>Mensagens rápidas</h2>
+      <p>Escolha uma resposta para inserir no campo de mensagem. Ela não é enviada automaticamente.</p>
+      <div id="quickRepliesList" class="quick-replies-list">
+        <button data-text="Olá! Vou verificar a 2ª via do boleto para você e já retorno."><b>/boleto</b><span>Vou verificar a 2ª via do boleto para você e já retorno.</span></button>
+        <button data-text="Recebemos sua solicitação e ela já foi encaminhada ao setor responsável."><b>/recebido</b><span>Confirma o recebimento e encaminhamento da solicitação.</span></button>
+        <button data-text="Nosso atendimento funciona de segunda a sexta-feira, das 8h às 17h."><b>/horario</b><span>Informa o horário de atendimento.</span></button>
+        <button data-text="Seu atendimento foi concluído. Se precisar de algo mais, estamos à disposição."><b>/finalizar</b><span>Mensagem de encerramento cordial.</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="teamModal" class="overlay hidden">
+    <div class="qr-card team-card">
+      <button id="closeTeamModal" class="icon-btn close">×</button>
+      <div class="modal-head"><div><h2>Equipe e filas</h2><p>Usuários e filas persistidos no SQLite. Somente administradores podem alterar.</p></div><span class="version-chip">v0.13.1</span></div>
+      <div class="team-grid">
+        <section><h3>Usuários</h3><div id="teamUsers" class="admin-list"></div><form id="newUserForm" class="admin-form"><input id="newUserName" placeholder="Nome" required><input id="newUserEmail" type="email" placeholder="E-mail" required><input id="newUserPassword" type="password" placeholder="Senha inicial" required><select id="newUserRole"><option value="agent">Atendente</option><option value="supervisor">Supervisor</option><option value="admin">Administrador</option></select><button>Adicionar usuário</button></form></section>
+        <section><h3>Filas</h3><div id="teamQueues" class="admin-list"></div><form id="newQueueForm" class="admin-form"><input id="newQueueName" placeholder="Nome da fila" required><button>Adicionar fila</button></form></section>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="supervisorModal" class="overlay hidden">
+    <div class="qr-card supervisor-card">
+      <button id="closeSupervisorModal" class="icon-btn close">×</button>
+      <div class="modal-head"><div><h2>Painel de supervisão</h2><p>Equipe, capacidade, filas, SLA e carga em tempo real.</p></div><span class="version-chip">v0.13.1</span></div>
+      <div id="supervisorKpis" class="supervisor-kpis"></div>
+      <div class="supervisor-grid"><section><h3>Equipe</h3><div id="supervisorAgents"></div></section><section><h3>Filas e SLA</h3><div id="supervisorQueues"></div></section></div>
+    </div>
+  </div>
+  <div id="toast" class="toast hidden"></div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-mark"><span class="ring"></span><div><b>CONNECT</b><small>— CONDOMÍNIO —</small></div></div>
+      <div class="agent-card">
+        <div class="avatar photo"><span id="currentUserInitials">DM</span><span id="agentStatusDot" class="online-dot"></span></div>
+        <div><strong id="currentUserName">Djalma Martins</strong><select id="agentStatusSelect" class="agent-status-select"><option value="online">Online</option><option value="away">Ausente</option><option value="offline">Offline</option></select></div>
+        <span class="chev">⌄</span>
+      </div>
+      <nav>
+        <a>⌂ <span>Dashboard</span></a>
+        <a class="active">◉ <span>Atendimentos</span></a>
+        <a id="contactsNav" href="#">♙ <span>Contatos</span></a>
+        <a>▣ <span>Chamados</span></a>
+        <a id="quickRepliesNav" href="#">ϟ <span>Mensagens rápidas</span></a>
+        <a>⚑ <span>Respostas prontas</span></a>
+        <a>◇ <span>Etiquetas</span></a>
+        <a id="supervisorNav" href="#">▦ <span>Supervisão</span></a><a>▥ <span>Relatórios</span></a>
+        <a>✧ <span>Painel de IA</span><em>Novo</em></a>
+        <a id="teamNav" href="#">⚙ <span>Equipe e filas</span></a>
+      </nav>
+      <div class="sidebar-version"><span>ConnectTalk</span><b id="appVersion">v0.13.1</b></div>
+      <button id="logoutBtn" class="logout">⇱ <span>Sair</span></button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><div class="title-line"><h1>Atendimentos WhatsApp</h1><span id="layoutVersion" class="version-chip">v0.13.1</span></div><p>Gerencie todas as conversas com moradores em um só lugar.</p></div>
+        <div class="top-actions">
+          <select id="queueFilter" class="ghost queue-filter"><option value="">☷ Todas as filas</option></select>
+          <label class="search">⌕<input id="chatSearch" placeholder="Buscar atendimentos..." /></label>
+          <button class="icon-btn">♧<span class="badge">3</span></button>
+          <button id="connectBtn" class="availability"><i></i><span id="availabilityText">Conectar</span>⌄</button>
+        </div>
+      </header>
+
+      <section class="kpis">
+        <article><p>Atendimentos em aberto</p><div><strong id="kOpen">0</strong><span class="kpi-icon green">◉</span></div><small><b>Em andamento + fila</b></small></article>
+        <article><p>Na fila</p><div><strong id="kWaiting">0</strong><span class="kpi-icon orange">◷</span></div><small><b>Aguardando atendente</b></small></article>
+        <article><p>Respondidos hoje</p><div><strong id="kAnswered">0</strong><span class="kpi-icon green">✓</span></div><small><b>Atendimentos com resposta</b></small></article>
+        <article><p>Tempo médio 1ª resposta</p><div><strong id="kAvgResponse">—</strong><span class="kpi-icon blue">◷</span></div><small><b>Baseado no histórico real</b></small></article>
+        <article><p>Finalizados hoje</p><div><strong id="kClosedToday">0</strong><span class="kpi-icon orange">✓</span></div><small><b>Encerrados no dia</b></small></article>
+      </section>
+
+      <section class="workspace">
+        <div class="conversation-list panel">
+          <div class="panel-title"><h2>Conversas</h2><button class="icon-btn">≡</button></div>
+          <div class="tabs" id="attendanceTabs"><button class="selected" data-filter="all">Todas <b id="totalChats">0</b></button><button data-filter="mine">Minhas <b id="mineCount">0</b></button><button data-filter="queue">Na fila <b id="queueCount">0</b></button><button data-filter="closed">Finalizadas <b id="closedCount">0</b></button></div>
+          <div id="chatList" class="chat-list"></div>
+          <button class="more">Ver mais conversas</button>
+        </div>
+
+        <div class="chat panel">
+          <div class="chat-head"><div class="avatar dark" id="chatAvatar">JS</div><div class="chat-ident"><strong id="chatName">Selecione uma conversa</strong><span id="chatPhone">—</span></div><span class="wa-dot">◉</span><div class="spacer"></div><span id="attendanceStatus" class="attendance-chip waiting">Na fila</span><button id="claimBtn" class="ghost mini action-green">Assumir</button><button id="closeAttendanceBtn" class="ghost mini">Finalizar</button><button class="icon-btn">⋮</button></div><div class="attendance-bar"><label>Fila <select id="queueSelect"></select></label><label>Atendente <select id="agentSelect"><option value="">Sem atendente</option></select></label><button id="transferBtn" class="ghost mini">Transferir</button><label>Estado <select id="attendanceStateSelect"><option value="waiting">Na fila</option><option value="assigned">Em atendimento</option><option value="waiting_customer">Aguardando cliente</option><option value="waiting_internal">Aguardando interno</option></select></label><span id="attendanceMeta">Selecione uma conversa para gerenciar o atendimento.</span></div>
+          <div id="messageArea" class="message-area"></div>
+          <div class="composer"><button>⌕</button><button>☺</button><button>ϟ</button><input id="messageInput" placeholder="Digite uma mensagem..." /><button id="sendBtn" class="send">➤</button></div>
+        </div>
+
+        <aside class="contact-column">
+          <section class="panel info-card"><div class="panel-title"><h3>Informações do contato</h3><button id="editContactBtn">✎</button></div><p>♙ <span id="infoName">João Silva</span></p><p>⌕ <span id="infoPhone">+55 11 98765-4321</span> <button id="copyPhoneBtn" class="inline-icon" title="Copiar telefone">⧉</button><b class="wa">◉</b></p><p>✉ <span id="infoEmail">Não identificado</span></p><p>◫ <span id="infoDocument">CPF/CNPJ não informado</span></p><p>▦ <span id="infoUnit">Condomínio/unidade não identificados</span></p><p>◎ <span id="infoRelationship">Vínculo não identificado</span></p><p class="notes-row">✎ <span id="infoNotes">Sem observações internas</span></p><button id="identifyContactBtn" class="wide">Identificar / editar contato</button></section>
+          <section class="panel info-card"><div class="panel-title"><h3>Classificação</h3></div><div class="classification-form"><label>Prioridade<select id="prioritySelect"><option value="low">Baixa</option><option value="normal">Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></label><label>Etiquetas<input id="tagsInput" placeholder="financeiro, boleto" /></label><button id="saveTagsBtn" class="wide compact">Salvar etiquetas</button></div><div id="tagsList" class="tags"></div></section>
+          <section class="panel info-card"><h3>Nota interna</h3><div class="internal-note"><textarea id="internalNoteInput" placeholder="Visível apenas para a equipe..."></textarea><button id="addNoteBtn" class="wide compact">Adicionar nota</button><div id="internalNotes" class="internal-notes"></div></div></section>
+          <section class="panel info-card"><h3>Histórico do atendimento</h3><div id="attendanceHistory" class="attendance-history"><p class="empty-history">Selecione uma conversa.</p></div></section>
+          <section class="panel info-card"><div class="panel-title"><h3>Atalhos</h3><button class="add">+ Adicionar</button></div><button class="shortcut quick-insert" data-text="Olá! Vou verificar a 2ª via do boleto para você e já retorno.">ϟ 2ª via de boleto</button><button class="shortcut quick-insert" data-text="Olá! Recebemos sua solicitação. Vou verificar as informações e já retorno.">ⓘ Informações gerais</button><button class="shortcut quick-insert" data-text="Nosso atendimento funciona de segunda a sexta-feira, das 8h às 17h.">ⓘ Horário de funcionamento</button></section>
+        </aside>
+      </section>
+    </main>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

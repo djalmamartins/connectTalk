@@ -1,0 +1,20 @@
+{
+  "name": "connecttalk-v0.13.1-queue-routing",
+  "version": "0.13.1",
+  "private": true,
+  "type": "module",
+  "description": "ConnectTalk v0.13.1 com fila real, distribuição automática após 30s e escalonamento para supervisão.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "reset": "node scripts/reset-session.js"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "6.7.23",
+    "express": "^5.1.0",
+    "pino": "^9.9.0",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.1"
+  }
+}

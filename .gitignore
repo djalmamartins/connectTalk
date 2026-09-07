@@ -1,0 +1,29 @@
+# Dependências
+node_modules/
+
+# Sessão/autenticação do WhatsApp
+baileys_auth/
+
+# Banco e dados locais
+data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+
+# Variáveis e segredos
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# macOS
+.DS_Store
+
+# Backups
+*.zip
+backup/
+backups/
